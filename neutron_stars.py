@@ -7,77 +7,82 @@ import scipy.integrate as integrate
 import scipy.misc
 import matplotlib.pyplot
 
-# Speed of light
-c = float(3.0 * pow(10, 8))
-# Newton's Gravitational constant
-G = float(6.673 * pow(10, -8))
-# Neutron Mass
-M_a = float(1.674929 * pow(10,-27)) # kg
-# Number of nucleons per electron
-A_Z = 2.00
-# Plank's constant
-h_bar = float(1.0545718 * pow(10, -34)) # m2 kg / s
-# Electron mass
-m_e = float(9.10938356 * pow(10, -31)) # kg
 
-# User defined kF
-k_F = m_e
+def rk4(f, x0, y0, x_max, n):
+    dx = np.empty(n + 1)
+    dy = np.empty(n + 1)
+    h = (x_max - x0) / float(n)
 
-def newtonian_tov(r):
-	return -(G * energy_density(r) * total_mass(r)) / (float(pow(c, 2)) * float(pow(r, 2)))
+    dx[0] = x = x0
+    dy[0] = y = y0
+    for i in range(1, n+1):
+        k1 = h * f(x, y)
+        k2 = h * f(x + 0.5 * h, y + 0.5 * k1)
+        k3 = h * f(x + 0.5 * h, y + 0.5 * k2)
+        k4 = h * f(x + h, y + k3)
 
+        dx[i] = x = x0 + i * h
+        dy[i] = y = y + (k1 + 2*k2 + 2*k3 + k4) / 6
 
-def free_electrons():
-	return (pow(k_F, 3)) / (3 * pow(math.pi, 2) * pow(h_bar, 3))
+    return dx, dy
 
 
-def mass_density():
-	return free_electrons() * M_a * A_Z
+def euler(f, x0, y0, x_max, n):
+    dx = np.empty(n + 1)
+    dy = np.empty(n + 1)
+    h = (x_max - x0) / float(n)
+
+    dx[0] = x = x0
+    dy[0] = y = y0
+    for i in range(n):
+        dy[i+1] = dy[i] + (h) * f(y, i)
+        y = dy[i]
+        print(y)
+        # print(dy[i])
+
+    return dx, dy
 
 
-def energy_density(r):
-	return mass_density() * float(pow(c, 2))
+def simple_dx_dt(x, t):
+    """
+    dx
+    -- = -t
+    dt
+    """
+
+    return -t
 
 
-def total_mass_integral(r):
-	"""
-	NOTE: Only for use when integrating for total mass below.
-	"""
-	return (float(pow(r, 2)) * energy_density(r)) / float(pow(c, 2))
+def exact_dx_dt(x, t):
+    """
+    x = e^(t)
+    """
+    return math.pow(math.e, x)
 
 
-def total_mass(r):
-	return 4 * math.pi * integrate.quad(total_mass_integral, 0, r)[1]
+def solve_rk4_dx_dt():
+    return rk4(exact_dx_dt, 0, 1, 10, 10)
 
 
-def rk4(func, max_x=10, step_size=1):
-	# Step size
-	h = step_size
-	t = 0.001
-	y = 0
+def solve_euler_dx_dt():
+    return euler(exact_dx_dt, 0, 1, 10, 10)
 
-	results = np.empty(max_x * (1/step_size))
-	index = 0
 
-	while t < max_x:
-		# K values for rk4
-		k1 = func(t)
-		k2 = func(t + (h/2)* k1)
-		k3 = func(t + (h/2)* k2)
-		k4 = func(t + h*k3)
+def solve_exact_dx_dt():
+    y = np.empty(11)
+    for t in range(11):
+        y[t] = exact_dx_dt(t, y)
+        # print(y[t])
 
-		y += float((h/6) * float(k1 + 2*k2 + 2*k3 + k4))
-		results[index] = y
-		index += 1
-		t += h
-
-	return results
+    return y
 
 
 if __name__ == '__main__':
-	print("Calculating...")
-	res = rk4(newtonian_tov, max_x=30, step_size=0.001)
-	print("Plotting...")
-	matplotlib.pyplot.figure("Newtonian TOV")
-	matplotlib.pyplot.plot(res)
-	matplotlib.pyplot.show() 
+    sol = solve_exact_dx_dt()
+    rk4_sol = solve_rk4_dx_dt()
+    matplotlib.pyplot.plot(sol, 'b', label='e^(t)')
+    matplotlib.pyplot.plot(rk4_sol[1], 'r', label='rk4')
+    matplotlib.pyplot.legend(loc='best')
+    matplotlib.pyplot.xlabel('t')
+    matplotlib.pyplot.grid()
+    matplotlib.pyplot.show()
